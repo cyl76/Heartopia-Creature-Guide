@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>心動小鎮生物指南</title>
+    
+    <link rel="apple-touch-icon" href="https://i.postimg.cc/yd2psV1J/tu-pian-20260226141941-98-8.jpg">
+    <link rel="icon" href="https://i.postimg.cc/yd2psV1J/tu-pian-20260226141941-98-8.jpg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --nature-beige: #F8F6F0;
+            --insect-accent: #66BB6A;
+            --fish-accent: #42A5F5;
+            --bird-accent: #FFA726;
+        }
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--nature-beige);
+            color: #333;
+            overflow-x: hidden;
+            padding-bottom: calc(100px + env(safe-area-inset-bottom));
+        }
+
+        .filter-section {
+            background: white;
+            border-bottom: 1px solid #EEE;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding-top: env(safe-area-inset-top);
+        }
+
+        .chip-scroll {
+            display: flex;
+            overflow-x: auto;
+            gap: 6px;
+            padding: 4px 16px;
+            scrollbar-width: none;
+        }
+        .chip-scroll::-webkit-scrollbar { display: none; }
+        
+        .chip {
+            white-space: nowrap;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: #F3F4F6;
+            font-size: 0.75rem;
+            color: #666;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 1px solid transparent;
+        }
+        .chip.active-insect { background: var(--insect-accent); color: white; border-color: var(--insect-accent); }
+        .chip.active-fish { background: var(--fish-accent); color: white; border-color: var(--fish-accent); }
+        .chip.active-bird { background: var(--bird-accent); color: white; border-color: var(--bird-accent); }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            border: 1px solid #F0F0F0;
+            position: relative;
+        }
+
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            border-top: 1px solid #EEE;
+            z-index: 200;
+        }
+        .tab-btn { flex: 1; display: flex; flex-direction: column; align-items: center; color: #999; }
+        .tab-btn.active-insect { color: var(--insect-accent); font-weight: bold; }
+        .tab-btn.active-fish { color: var(--fish-accent); font-weight: bold; }
+        .tab-btn.active-bird { color: var(--bird-accent); font-weight: bold; }
+
+        .level-input-container {
+            display: flex;
+            align-items: center;
+            background: #F3F4F6;
+            border-radius: 8px;
+            padding: 2px 8px;
+        }
+        .level-input-container input {
+            background: transparent;
+            border: none;
+            width: 40px;
+            text-align: center;
+            font-weight: bold;
+            outline: none;
+        }
+
+        #modalOverlay { background: rgba(0,0,0,0.5); }
+        .modal-content { 
+            bottom: -100%; 
+            transition: bottom 0.3s ease-out; 
+            padding-bottom: calc(24px + env(safe-area-inset-bottom));
+        }
+        .modal-active .modal-content { bottom: 0; }
+
+        .add-btn {
+            position: fixed;
+            bottom: calc(100px + env(safe-area-inset-bottom));
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 150;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .delete-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #FF5252;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="filter-section pb-2 shadow-sm">
+        <div class="px-4 pt-4">
+            <div class="flex justify-between items-center mb-2">
+                <h1 id="mainTitle" class="text-xl font-bold text-gray-800">觀鳥手冊</h1>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-gray-500">我的等級</span>
+                    <div class="level-input-container">
+                        <input type="number" id="levelInput" value="14" min="1" max="50" onchange="updateLevel(this.value)">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <input type="text" id="searchInput" placeholder="搜尋生物名稱" class="flex-1 bg-gray-100 border-none rounded-lg p-2.5 outline-none text-sm">
+                <button onclick="resetFilters()" class="bg-gray-200 px-4 rounded-lg text-sm font-medium hover:bg-gray-300 transition">顯示全部</button>
+            </div>
+            <p id="statsCounter" class="text-[10px] mt-2 text-gray-400 font-medium"></p>
+        </div>
+
+        <div class="chip-scroll mt-2" id="locationFilters"></div>
+        <div class="chip-scroll" id="weatherFilters"></div>
+        <div class="chip-scroll" id="timeFilters"></div>
+    </div>
+
+    <div id="itemList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4"></div>
+    <div id="empty" class="hidden text-center py-20 text-gray-400 px-4">目前沒有符合條件的生物</div>
+
+    <div id="floatingAddBtn" class="add-btn" onclick="openModal()">＋</div>
+
+    <!-- Modal -->
+    <div id="modalOverlay" class="fixed inset-0 z-[300] hidden flex items-end">
+        <div class="modal-content fixed left-0 right-0 bg-white rounded-t-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold" id="modalTitle">新增資料</h2>
+                <button onclick="closeModal()" class="text-gray-400 text-xl p-2">✕</button>
+            </div>
+            
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">名稱</label>
+                    <input type="text" id="newName" class="w-full bg-gray-100 rounded-lg p-3 outline-none" placeholder="輸入名稱">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">等級限制</label>
+                    <input type="number" id="newLevel" class="w-full bg-gray-100 rounded-lg p-3 outline-none" value="1">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">地點</label>
+                    <input type="text" id="newLocInput" class="w-full bg-gray-100 rounded-lg p-3 outline-none mb-2" placeholder="輸入詳細地點">
+                    <label class="block text-[10px] text-gray-400 mb-1">點擊下方按鈕進行篩選分類</label>
+                    <div id="newLocOptions" class="flex flex-wrap gap-2 pt-1"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">主要出現天氣</label>
+                    <div id="newWeatherOptions" class="flex flex-wrap gap-2 pt-1"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">主要出現時段</label>
+                    <div id="newTimeOptions" class="flex flex-wrap gap-2 pt-1"></div>
+                </div>
+                
+                <!-- 觀鳥手冊專用：舒展時機 -->
+                <div id="birdStretchingSection" class="hidden border-t pt-4 border-gray-100">
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">舒展動作天氣</label>
+                        <div id="newStretchWeatherOptions" class="flex flex-wrap gap-2 pt-1"></div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">舒展動作時段</label>
+                        <div id="newStretchTimeOptions" class="flex flex-wrap gap-2 pt-1"></div>
+                    </div>
+                </div>
+
+                <button onclick="saveNewItem()" id="saveBtn" class="w-full py-4 rounded-xl text-white font-bold mt-4 shadow-lg">確認新增</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="tab-bar">
+        <button onclick="switchTab('bird')" class="tab-btn" id="tab-bird">
+            <span class="text-2xl mb-1">🦅</span>
+            <span class="text-[10px]">觀鳥手冊</span>
+        </button>
+        <button onclick="switchTab('insect')" class="tab-btn" id="tab-insect">
+            <span class="text-2xl mb-1">🦋</span>
+            <span class="text-[10px]">捕蟲手冊</span>
+        </button>
+        <button onclick="switchTab('fish')" class="tab-btn" id="tab-fish">
+            <span class="text-2xl mb-1">🐟</span>
+            <span class="text-[10px]">捕魚手冊</span>
+        </button>
+    </nav>
+
+    <script>
+        const shadowMap = { "小": "小魚影", "中": "中魚影", "大": "大魚影", "金": "金魚影", "藍": "藍魚影" };
+        
+        // 修正與統一時間格式 (移除字串內多餘空格與逗號，統一改為斜線)
+        const initialBirdData = [
+            { level: 1, name: "知更鳥", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "中心城區", category: "中心城區" },
+            { level: 1, name: "大山雀", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "溫泉山", category: "溫泉山" },
+            { level: 1, name: "鵪鶉", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "森林", category: "森林" },
+            { level: 1, name: "紅腹灰雀", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "城郊", category: "城郊" },
+            { level: 1, name: "蒼頭燕雀", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "花田", category: "花田" },
+            { level: 1, name: "琉璃金剛鸚鵡", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "百鳥歸巢", category: "特殊" },
+            { level: 1, name: "歐鴿", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "中心城區", category: "中心城區" },
+            { level: 1, name: "灰斑鳩", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "家園", category: "城郊" },
+            { level: 1, name: "斑皇鳩", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "漁村", category: "漁村" },
+            { level: 1, name: "大火烈鳥", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "水域", category: "水域" },
+            { level: 1, name: "藍孔雀", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "百鳥歸巢", category: "特殊" },
+            { level: 1, name: "綠頭鴨", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "湖泊", category: "水域" },
+            { level: 2, name: "北長尾山雀", appearance: "全天氣 全時段", movement: "全天氣 全時段", location: "布蘭克頭頂", category: "特殊" },
+            { level: 2, name: "五子雀", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "漁村", category: "漁村" },
+            { level: 2, name: "文須雀", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "溫泉山", category: "溫泉山" },
+            { level: 2, name: "林鵬伯勞", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "城郊", category: "城郊" },
+            { level: 2, name: "巨地鳩", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "森林", category: "森林" },
+            { level: 2, name: "紅頸綠鳩", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "花田", category: "花田" },
+            { level: 2, name: "赤頸鴨", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "河流", category: "水域" },
+            { level: 2, name: "海鷗", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "海邊", category: "水域" },
+            { level: 3, name: "金黃鸝", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "家園", category: "城郊" },
+            { level: 3, name: "紅綠金剛鸚鵡", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "百鳥歸巢", category: "特殊" },
+            { level: 3, name: "赤麻鴨", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "城郊湖", category: "城郊" },
+            { level: 3, name: "王絨鴨", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "河流", category: "水域" },
+            { level: 3, name: "奧杜安海鷗", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "鯨魚海海邊", category: "水域" },
+            { level: 3, name: "歐洲綠鵓鴣", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "海邊", category: "水域" },
+            { level: 3, name: "雙斑草雀", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "燈塔", category: "漁村" },
+            { level: 3, name: "銀喉山雀", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "跳跳台", category: "森林" },
+            { level: 4, name: "白鶺鴒", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "紫光海灘", category: "花田" },
+            { level: 4, name: "灰冠紅雀", appearance: "晴天/彩虹天 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "漁村廣場", category: "漁村" },
+            { level: 4, name: "松雀", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "森林島", category: "森林" },
+            { level: 4, name: "黃頭輝亭鳥", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "靈橡松林", category: "森林" },
+            { level: 4, name: "白秋沙鴨", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "森林湖", category: "森林" },
+            { level: 4, name: "金果鳩", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "風車", category: "花田" },
+            { level: 4, name: "白腹錦雞", appearance: "全天氣 全時段", movement: "雨天/彩虹天 全時段", location: "遺跡", category: "溫泉山" },
+            { level: 5, name: "黃腹紋霸鶲", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "漁村碼頭", category: "漁村" },
+            { level: 5, name: "黃喉蜂虎", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "溫泉山湖", category: "溫泉山" },
+            { level: 5, name: "大綠金剛鸚鵡", appearance: "晴天/彩虹天 全時段", movement: "彩虹天 12:00-18:00 / 18:00-00:00", location: "百鳥歸巢", category: "特殊" },
+            { level: 5, name: "黃眼鴿", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "溫泉區", category: "溫泉山" },
+            { level: 5, name: "小火烈鳥", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "森林湖", category: "森林" },
+            { level: 5, name: "白頂玄燕鷗", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "舊海海邊", category: "水域" },
+            { level: 6, name: "錫嘴雀", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "火山湖", category: "溫泉山" },
+            { level: 6, name: "紅喉雞鳩", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "漁村東棧", category: "漁村" },
+            { level: 6, name: "紅臉鸕鶿", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "舊海/鯨魚海海邊", category: "水域" },
+            { level: 6, name: "長耳鴞", appearance: "晴天/彩虹天 全時段", movement: "彩虹天 18:00-00:00", location: "石岸崖", category: "溫泉山" },
+            { level: 7, name: "灰藍山雀", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "風車", category: "花田" },
+            { level: 7, name: "靛藍金剛鸚鵡", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 12:00-18:00 / 18:00-00:00", location: "百鳥歸巢", category: "特殊" },
+            { level: 7, name: "粉頭果鳩", appearance: "全天氣 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "城郊", category: "城郊" },
+            { level: 7, name: "燕鷗", appearance: "彩虹天 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00", location: "東海海邊", category: "水域" },
+            { level: 7, name: "紅隼", appearance: "晴天/彩虹天 全時段", movement: "彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "小鹿塔樹頂", category: "森林" },
+            { level: 8, name: "東藍鴝", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 18:00-00:00", location: "城郊", category: "城郊" },
+            { level: 8, name: "白腰朱頂雀", appearance: "全天氣 全時段", movement: "彩虹天 12:00-18:00 / 18:00-00:00", location: "靈橡松林", category: "森林" },
+            { level: 8, name: "粉鴿", appearance: "全天氣 全時段", movement: "彩虹天 12:00-18:00 / 18:00-00:00", location: "鯨魚山", category: "花田" },
+            { level: 8, name: "游隼", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 18:00-00:00", location: "溫泉區", category: "溫泉山" },
+            { level: 9, name: "仙靚唐納雀", appearance: "彩虹天 全時段", movement: "彩虹天 18:00-00:00", location: "城郊", category: "城郊" },
+            { level: 9, name: "美洲火烈鳥", appearance: "彩虹天 全時段", movement: "彩虹天 12:00-18:00", location: "紫光海灘", category: "花田" },
+            { level: 9, name: "綠孔雀", appearance: "全天氣 全時段", movement: "彩虹天 12:00-18:00", location: "百鳥歸巢 - 額外階段", category: "特殊" },
+            { level: 9, name: "白頭硬尾鴨", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 12:00-18:00", location: "溫泉山湖", category: "溫泉山" },
+            { level: 9, name: "皇帝鵓鴣", appearance: "全天氣 全時段", movement: "彩虹天 12:00-18:00", location: "緩風海海邊", category: "水域" },
+            { level: 10, name: "聖米格爾雀", appearance: "彩虹天 全時段", movement: "彩虹天 18:00-00:00", location: "燈塔", category: "漁村" },
+            { level: 10, name: "銅藍鶲", appearance: "彩虹天 全時段", movement: "彩虹天 18:00-00:00", location: "跳跳台", category: "森林" },
+            { level: 10, name: "紅腳隼", appearance: "全天氣 全時段", movement: "彩虹天 18:00-00:00", location: "遺跡", category: "溫泉山" },
+            { level: 10, name: "雕鴞", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 18:00-00:00", location: "小鹿塔樹頂", category: "森林" },
+            { level: 11, name: "紫背椋鳥", appearance: "全天氣 全時段", movement: "彩虹天 18:00-00:00", location: "風車", category: "花田" },
+            { level: 11, name: "藍頭鵲鴝", appearance: "晴天/彩虹天 00:00-06:00 / 12:00-18:00 / 18:00-00:00", movement: "彩虹天 12:00-18:00 / 18:00-00:00", location: "城郊", category: "城郊" },
+            { level: 11, name: "白孔雀", appearance: "全天氣 全時段", movement: "彩虹天 12:00-18:00", location: "百鳥歸巢 - 額外階段", category: "特殊" },
+            { level: 11, name: "花臉鴨", appearance: "彩虹天 全時段", movement: "彩虹天 12:00-18:00", location: "溫泉山湖", category: "溫泉山" },
+            { level: 11, name: "印加燕鷗", appearance: "雨天/彩虹天 06:00-12:00 / 12:00-18:00 / 18:00-00:00", movement: "彩虹天 06:00-12:00 / 12:00-18:00", location: "舊海海邊", category: "水域" },
+            { level: 12, name: "北極海鸚", appearance: "晴天/彩虹天 00:00-12:00 / 18:00-00:00", movement: "彩虹天 06:00-12:00", location: "鯨魚海海邊", category: "水域" },
+            { level: 12, name: "紅眉火尾雀", appearance: "彩虹天 全時段", movement: "彩虹天 18:00-00:00", location: "火山湖", category: "溫泉山" },
+            { level: 12, name: "藍腳鰹鳥", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 12:00-18:00", location: "緩風海海邊", category: "水域" },
+            { level: 12, name: "雪鴞", appearance: "全天氣 12:00-18:00 / 18:00-00:00", movement: "彩虹天 18:00-00:00", location: "靈橡松林樹頂", category: "森林" },
+            { level: 13, name: "黑孔雀", appearance: "全天氣 全時段", movement: "彩虹天 12:00-18:00", location: "百鳥歸巢 - 額外階段", category: "特殊" },
+            { level: 13, name: "大天鵝", appearance: "晴天/彩虹天 全時段", movement: "彩虹天 12:00-18:00", location: "城郊湖", category: "城郊" },
+            { level: 13, name: "黑天鵝", appearance: "雨天/彩虹天 全時段", movement: "彩虹天 12:00-18:00", location: "城郊湖", category: "城郊" },
+            { level: 14, name: "黑鸛", appearance: "全天氣 00:00-06:00 / 12:00-18:00 / 18:00-00:00", movement: "彩虹天 12:00-18:00", location: "草原湖", category: "花田" },
+            { level: 14, name: "眼鏡鴨", appearance: "全天氣 00:00-12:00", movement: "彩虹天 06:00-12:00", location: "跳跳台樹頂", category: "森林" }
+        ];
+
+        const initialInsectData = [
+           { level: 1, name: "金鳳蝶", weather: "全天氣", time: "全時段", location: "森林", category: "森林" },
+  { level: 1, name: "紅襟粉蝶", weather: "全天氣", time: "全時段", location: "中心城區", category: "中心城區" },
+  { level: 1, name: "鉤粉蝶", weather: "全天氣", time: "全時段", location: "城郊", category: "城郊" },
+  { level: 1, name: "菜粉蝶", weather: "全天氣", time: "全時段", location: "漁村", category: "漁村" },
+  { level: 1, name: "阿波羅絹蝶", weather: "全天氣", time: "全時段", location: "引蟲出洞", category: "特殊" },
+  { level: 1, name: "紅環鳳蝶", weather: "全天氣", time: "全時段", location: "引蟲出洞", category: "特殊" },
+  { level: 1, name: "夜明珠閃蝶", weather: "全天氣", time: "全時段", location: "蜜蜂誘蟲器", category: "特殊" },
+  { level: 1, name: "蘆筍葉甲", weather: "全天氣", time: "全時段", location: "花田", category: "花田" },
+  { level: 1, name: "綠洲蝗", weather: "全天氣", time: "全時段", location: "溫泉山", category: "溫泉山" },
+  { level: 1, name: "始紅蝽", weather: "全天氣", time: "全時段", location: "家園", category: "城郊" },
+  { level: 1, name: "大紅豆娘", weather: "全天氣", time: "全時段", location: "水域", category: "水邊" },
+  { level: 2, name: "普藍眼灰蝶", weather: "全天氣", time: "全時段", location: "中心城區", category: "中心城區" },
+  { level: 2, name: "綠虎甲", weather: "全天氣", time: "全時段", location: "溫泉山", category: "溫泉山" },
+  { level: 2, name: "黃蜂虎天牛", weather: "全天氣", time: "全時段", location: "森林", category: "森林" },
+  { level: 2, name: "藍星花金龜", weather: "雨天/彩虹天", time: "全時段", location: "家園", category: "城郊" },
+  { level: 2, name: "錘腿蝗", weather: "全天氣", time: "全時段", location: "漁村", category: "漁村" },
+  { level: 2, name: "七星瓢蟲", weather: "雨天/彩虹天", time: "全時段", location: "城郊", category: "城郊" },
+  { level: 2, name: "小斑蜻", weather: "雨天/彩虹天", time: "全時段", location: "城郊湖", category: "城郊" },
+  { level: 2, name: "熊蜂", weather: "全天氣", time: "全時段", location: "花田", category: "花田" },
+  { level: 3, name: "紫閃蛺蝶", weather: "晴天/彩虹天", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "鯨魚山", category: "花田" },
+  { level: 3, name: "翠葉紅頸鳳蝶", weather: "全天氣", time: "00:00-06:00 / 06:00-12:00 / 18:00-00:00", location: "家園", category: "城郊" },
+  { level: 3, name: "姬長尾水青蛾", weather: "晴天/彩虹天", time: "06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "城郊", category: "城郊" },
+  { level: 3, name: "赤翅甲", weather: "全天氣", time: "全時段", location: "溫泉區", category: "溫泉山" },
+  { level: 3, name: "粉色紡織娘", weather: "全天氣", time: "全時段", location: "引蟲出洞", category: "特殊" },
+  { level: 3, name: "蟈蟈", weather: "全天氣", time: "全時段", location: "紫光海灘", category: "花田" },
+  { level: 3, name: "白斑尾梳蜂", weather: "全天氣", time: "06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "小鹿塔", category: "森林" },
+  { level: 4, name: "螞蟻", weather: "全天氣", time: "全時段", location: "漁村廣場", category: "漁村" },
+  { level: 4, name: "豹紋網蛺蝶", weather: "雨天/彩虹天", time: "00:00-06:00 / 06:00-12:00 / 18:00-00:00", location: "碼頭", category: "漁村" },
+  { level: 4, name: "網翅蝗", weather: "晴天/彩虹天", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "城郊", category: "城郊" },
+  { level: 4, name: "四星瓢蟲", weather: "雨天/彩虹天", time: "全時段", location: "火山湖", category: "溫泉山" },
+  { level: 4, name: "蟬", weather: "全天氣", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "靈橡松林", category: "森林" },
+  { level: 4, name: "白尾蜻蜓", weather: "雨天/彩虹天", time: "全時段", location: "河流", category: "水邊" },
+  { level: 4, name: "虹螳", weather: "晴天/彩虹天", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "石岸崖", category: "溫泉山" },
+  { level: 5, name: "孔雀蛺蝶", weather: "全天氣", time: "全時段", location: "風車", category: "花田" },
+  { level: 5, name: "黃緣蛺蝶", weather: "晴天/彩虹天", time: "00:00-06:00 / 06:00-12:00 / 12:00-18:00", location: "溫泉區", category: "溫泉山" },
+  { level: 5, name: "白女巫蛾", weather: "晴天/彩虹天", time: "全時段", location: "引蟲出洞", category: "特殊" },
+  { level: 5, name: "高山長角天牛", weather: "彩虹天", time: "全時段", location: "森林島", category: "森林" },
+  { level: 5, name: "異色瓢蟲", weather: "雨天/彩虹天", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "小鹿塔", category: "森林" },
+  { level: 5, name: "巴布亞斧螳", weather: "晴天/彩虹天", time: "全時段", location: "遺蹟", category: "溫泉山" },
+  { level: 5, name: "紫木蜂", weather: "晴天/彩虹天", time: "全時段", location: "鯨魚山", category: "花田" },
+  { level: 6, name: "綠鳥翼鳳蝶", weather: "全天氣", time: "00:00-06:00 / 18:00-00:00", location: "城郊", category: "城郊" },
+  { level: 6, name: "深山鍬形蟲", weather: "雨天/彩虹天", time: "06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "跳跳台", category: "森林" },
+  { level: 6, name: "銀光寶石麗金龜", weather: "晴天/彩虹天", time: "06:00-12:00 / 12:00-18:00", location: "石岸崖", category: "溫泉山" },
+  { level: 6, name: "藍蝽", weather: "全天氣", time: "06:00-12:00 / 12:00-18:00", location: "燈塔", category: "漁村" },
+  { level: 6, name: "闊翅豆娘", weather: "雨天/彩虹天", time: "全時段", location: "森林湖", category: "森林" },
+  { level: 7, name: "大藍閃蝶", weather: "晴天/彩虹天", time: "06:00-12:00 / 12:00-18:00 / 18:00-00:00", location: "靈橡松林", category: "森林" },
+  { level: 7, name: "大絹斑蝶", weather: "雨天/彩虹天", time: "全時段", location: "引蟲出洞", category: "特殊" },
+  { level: 7, name: "蒂菲糞金龜", weather: "全天氣", time: "06:00-12:00 / 12:00-18:00", location: "遺蹟", category: "溫泉山" },
+  { level: 7, name: "美麗星花金龜", weather: "雨天/彩虹天", time: "06:00-12:00", location: "鯨魚山", category: "花田" },
+  { level: 7, name: "金光寶石麗金龜", weather: "晴天/彩虹天", time: "12:00-18:00 / 18:00-00:00", location: "跳跳台", category: "森林" },
+  { level: 7, name: "薔薇蜻蜓", weather: "彩虹天", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "溫泉山湖", category: "溫泉山" },
+  { level: 8, name: "伊莎貝拉蛾", weather: "晴天/彩虹天", time: "12:00-18:00 / 18:00-00:00", location: "靈橡松林", category: "森林" },
+  { level: 8, name: "彗星飛蛾", weather: "晴天/彩虹天", time: "00:00-06:00 / 18:00-00:00", location: "城郊", category: "城郊" },
+  { level: 8, name: "獨角仙", weather: "晴天/彩虹天", time: "00:00-06:00 / 18:00-00:00", location: "漁村東棧", category: "漁村" },
+  { level: 8, name: "畢加索盾蝽", weather: "晴天/彩虹天", time: "00:00-06:00 / 18:00-00:00", location: "紫光海灘", category: "花田" },
+  { level: 9, name: "綠貝矩蛺蝶", weather: "雨天/彩虹天", time: "00:00-06:00 / 06:00-12:00", location: "風車", category: "花田" },
+  { level: 9, name: "黃金鬼鍬", weather: "雨天/彩虹天", time: "00:00-06:00 / 18:00-00:00", location: "靈橡松林", category: "森林" },
+  { level: 9, name: "彩虹鍬甲", weather: "全天氣", time: "全時段", location: "引蟲出洞", category: "特殊" },
+  { level: 9, name: "錐頭螳", weather: "雨天/彩虹天", time: "12:00-18:00 / 18:00-00:00", location: "遺蹟", category: "溫泉山" },
+  { level: 9, name: "藍胸木蜂", weather: "彩虹天", time: "00:00-06:00 / 18:00-00:00", location: "漁村廣場", category: "漁村" },
+  { level: 10, name: "光明女神閃蝶", weather: "彩虹天", time: "06:00-12:00 / 12:00-18:00", location: "紫光海灘", category: "花田" },
+  { level: 10, name: "太陽閃蝶", weather: "彩虹天", time: "06:00-12:00 / 12:00-18:00", location: "小鹿塔", category: "森林" },
+  { level: 10, name: "長戟大兜蟲", weather: "晴天/彩虹天", time: "12:00-18:00 / 18:00-00:00", location: "火山湖", category: "溫泉山" },
+  { level: 10, name: "螺紋蓑蛾", weather: "晴天/彩虹天", time: "00:00-06:00 / 18:00-00:00", location: "小鹿塔", category: "森林" },
+  { level: 11, name: "亞歷山大鳳蝶", weather: "晴天/彩虹天", time: "00:00-06:00 / 18:00-00:00", location: "城郊湖", category: "城郊" },
+  { level: 11, name: "南洋大兜蟲", weather: "彩虹天", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "靈橡松林", category: "森林" },
+  { level: 11, name: "小十三星瓢蟲", weather: "彩虹天", time: "12:00-18:00 / 18:00-00:00", location: "鯨魚山", category: "花田" },
+  { level: 11, name: "蘭花螳螂", weather: "雨天/彩虹天", time: "06:00-12:00 / 12:00-18:00", location: "小鹿塔", category: "森林" },
+  { level: 12, name: "玫瑰青鳳蝶", weather: "雨天/彩虹天", time: "00:00-06:00 / 06:00-12:00 / 18:00-00:00", location: "風車", category: "花田" },
+  { level: 12, name: "歌利亞大王花金龜", weather: "彩虹天", time: "00:00-06:00 / 18:00-00:00", location: "小鹿塔", category: "森林" },
+  { level: 12, name: "乳草蝗蟲", weather: "雨天/彩虹天", time: "06:00-12:00 / 12:00-18:00", location: "溫泉區", category: "溫泉山" },
+  { level: 12, name: "火焰蜻蜓", weather: "彩虹天", time: "06:00-12:00 / 12:00-18:00", location: "草原湖", category: "花田" },
+  { level: 13, name: "夢幻閃蝶", weather: "彩虹天", time: "12:00-18:00 / 18:00-00:00", location: "火山湖", category: "溫泉山" },
+  { level: 13, name: "華艷色蟌", weather: "雨天/彩虹天", time: "12:00-18:00 / 18:00-00:00", location: "城郊湖", category: "城郊" },
+  { level: 14, name: "透翅蝶", weather: "彩虹天", time: "12:00-18:00 / 18:00-00:00", location: "鯨魚山", category: "花田" },
+  { level: 14, name: "綠蝸牛", weather: "晴天/彩虹天", time: "全時段", location: "森林島", category: "森林" }
+];
+
+        const initialFishData = [
+            { level: 1, name: "河鱸", weather: "全天氣", time: "全時段", location: "全河流", shadow: "中", category: "全河流" },
+            { level: 1, name: "海棘魚", weather: "全天氣", time: "全時段", location: "舊海", shadow: "小", category: "溫泉山" },
+            { level: 1, name: "歐鏈", weather: "全天氣", time: "全時段", location: "全湖泊", shadow: "中", category: "全湖泊" },
+            { level: 1, name: "花鰍", weather: "全天氣", time: "全時段", location: "巨木河", shadow: "小", category: "漁村" },
+            { level: 1, name: "鮈魚", weather: "全天氣", time: "全時段", location: "淺水河", shadow: "中", category: "城郊" },
+            { level: 1, name: "大斑金吉鱸", weather: "全天氣", time: "全時段", location: "霞光河", shadow: "中", category: "城郊" },
+            { level: 1, name: "米諾魚", weather: "全天氣", time: "全時段", location: "靜河", shadow: "小", category: "漁村" },
+            { level: 1, name: "縱帶羊魚", weather: "全天氣", time: "全時段", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 1, name: "丁鱖", weather: "全天氣", time: "全時段", location: "森林湖", shadow: "小", category: "森林" },
+            { level: 1, name: "真白鮭", weather: "全天氣", time: "全時段", location: "溫泉山湖", shadow: "中", category: "溫泉山" },
+            { level: 1, name: "黑鯽", weather: "全天氣", time: "全時段", location: "城郊湖", shadow: "中", category: "城郊" },
+            { level: 1, name: "歐白魚", weather: "全天氣", time: "全時段", location: "全湖泊", shadow: "小", category: "全湖泊" },
+            { level: 1, name: "擬白魚", weather: "全天氣", time: "全時段", location: "城郊湖", shadow: "小", category: "城郊" },
+            { level: 1, name: "青蝦", weather: "全天氣", time: "全時段", location: "全河流", shadow: "小", category: "全河流" },
+            { level: 1, name: "沙丁魚", weather: "全天氣", time: "全時段", location: "全海洋", shadow: "小", category: "全海洋" },
+            { level: 1, name: "海鱸魚", weather: "全天氣", time: "全時段", location: "全海洋", shadow: "中", category: "全海洋" },
+            { level: 1, name: "鰹魚", weather: "全天氣", time: "全時段", location: "全海洋", shadow: "大", category: "全海洋" },
+            { level: 1, name: "白帶魚", weather: "全天氣", time: "全時段", location: "緩風海", shadow: "大", category: "漁村" },
+            { level: 1, name: "海蝦", weather: "全天氣", time: "全時段", location: "東海", shadow: "小", category: "森林" },
+            { level: 1, name: "竹筴魚", weather: "全天氣", time: "全時段", location: "鯨魚海", shadow: "小", category: "花田" },
+            { level: 2, name: "石鰍", weather: "全天氣", time: "全時段", location: "城郊湖", shadow: "小", category: "城郊" },
+            { level: 2, name: "刺臀魚", weather: "全天氣", time: "06:00-00:00", location: "森林湖", shadow: "小", category: "森林" },
+            { level: 2, name: "胡瓜魚", weather: "全天氣", time: "全時段", location: "草原湖", shadow: "小", category: "花田" },
+            { level: 2, name: "梅花鱸", weather: "全天氣", time: "12:00-18:00 / 18:00-00:00", location: "溫泉山湖", shadow: "小", category: "溫泉山" },
+            { level: 2, name: "玫鰺", weather: "全天氣", time: "全時段", location: "緩風海", shadow: "中", category: "漁村" },
+            { level: 2, name: "海馬", weather: "全天氣", time: "00:00-18:00", location: "鯨魚海", shadow: "小", category: "花田" },
+            { level: 2, name: "安康魚", weather: "全天氣", time: "全時段", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 3, name: "貽貝", weather: "雨雪 / 彩虹", time: "全時段", location: "城郊湖", shadow: "小", category: "城郊" },
+            { level: 3, name: "白梭吻鱸", weather: "晴天 / 彩虹", time: "全時段", location: "巨木河", shadow: "中", category: "漁村" },
+            { level: 3, name: "蝌蚪", weather: "雨雪 / 彩虹", time: "全時段", location: "溫泉山湖", shadow: "小", category: "溫泉山" },
+            { level: 3, name: "北歐螯蝦", weather: "全天氣", time: "00:00-12:00 / 18:00-00:00", location: "森林湖", shadow: "小", category: "森林" },
+            { level: 3, name: "大菱鮃", weather: "全天氣", time: "全時段", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 3, name: "大西洋鮭", weather: "全天氣", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "鯨魚海", shadow: "中", category: "花田" },
+            { level: 3, name: "大西洋侏儒章魚", weather: "全天氣", time: "全時段", location: "緩風海", shadow: "小", category: "漁村" },
+            { level: 3, name: "寄居蟹", weather: "全天氣", time: "全時段", location: "東海", shadow: "小", category: "森林" },
+            { level: 3, name: "小丑魚", weather: "全天氣", time: "全時段", location: "舊海", shadow: "小", category: "溫泉山" },
+            { level: 4, name: "歐洲水蛙", weather: "全天氣", time: "全時段", location: "美人魚尾 - 全湖泊", shadow: "藍", category: "特殊" },
+            { level: 4, name: "大西洋銀鮫魚", weather: "全天氣", time: "全時段", location: "美人魚尾 - 全海洋", shadow: "藍", category: "特殊" },
+            { level: 4, name: "羅非魚", weather: "全天氣", time: "全時段", location: "美人魚尾 - 全河流", shadow: "藍", category: "特殊" },
+            { level: 4, name: "大口黑鱸", weather: "晴天 / 彩虹", time: "全時段", location: "森林湖", shadow: "中", category: "森林" },
+            { level: 4, name: "歐洲鯉", weather: "晴天 / 彩虹", time: "12:00-18:00 / 18:00-00:00", location: "霞光河", shadow: "中", category: "城郊" },
+            { level: 4, name: "江鱈", weather: "全天氣", time: "12:00-18:00 / 18:00-00:00", location: "靜河", shadow: "中", category: "漁村" },
+            { level: 4, name: "蝦虎魚", weather: "全天氣", time: "06:00-12:00 / 12:00-18:00", location: "東海", shadow: "小", category: "森林" },
+            { level: 4, name: "溪蟹", weather: "全天氣", time: "全時段", location: "城郊湖", shadow: "小", category: "城郊" },
+            { level: 4, name: "真蛸", weather: "全天氣", time: "全時段", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 4, name: "歐洲鰈", weather: "全天氣", time: "00:00-06:00 / 18:00-00:00", location: "舊海", shadow: "中", category: "溫泉山" },
+            { level: 4, name: "紅腹水虎魚", weather: "全天氣", time: "全時段", location: "巨木河", shadow: "中", category: "漁村" },
+            { level: 4, name: "蝴蝶鯉", weather: "雨雪 / 彩虹", time: "全時段", location: "草原湖", shadow: "大", category: "花田" },
+            { level: 5, name: "河鱝", weather: "全天氣", time: "全時段", location: "霞光河", shadow: "小", category: "城郊" },
+            { level: 5, name: "鱒魚", weather: "晴天 / 彩虹", time: "00:00-06:00 / 18:00-00:00", location: "草原湖", shadow: "中", category: "花田" },
+            { level: 5, name: "紅眼魚", weather: "全天氣", time: "全時段", location: "城郊湖", shadow: "小", category: "城郊" },
+            { level: 5, name: "大西洋鯖", weather: "晴天 / 彩虹", time: "12:00-18:00 / 18:00-00:00", location: "鯨魚海", shadow: "小", category: "花田" },
+            { level: 5, name: "歐洲螯龍蝦", weather: "全天氣", time: "00:00-06:00 / 18:00-00:00", location: "緩風海", shadow: "中", category: "漁村" },
+            { level: 5, name: "歐洲飛魷", weather: "全天氣", time: "全時段", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 6, name: "大珍珠蚌", weather: "彩虹", time: "全時段", location: "森林湖", shadow: "中", category: "森林" },
+            { level: 6, name: "河魨", weather: "全天氣", time: "12:00-18:00 / 18:00-00:00", location: "舊海", shadow: "中", category: "溫泉山" },
+            { level: 6, name: "大馬哈魚", weather: "彩虹", time: "全時段", location: "靜河", shadow: "小", category: "漁村" },
+            { level: 6, name: "茴魚", weather: "全天氣", time: "全時段", location: "城郊湖", shadow: "中", category: "城郊" },
+            { level: 6, name: "細鱗綠鰭魚", weather: "彩虹", time: "全時段", location: "東海", shadow: "中", category: "森林" },
+            { level: 6, name: "貓鯊", weather: "全天氣", time: "全時段", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 7, name: "三刺魚", weather: "雨雪 / 彩虹", time: "全時段", location: "淺水河", shadow: "小", category: "城郊" },
+            { level: 7, name: "斑條鰍魚", weather: "晴天 / 彩虹", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "城郊湖", shadow: "小", category: "城郊" },
+            { level: 7, name: "杜父魚", weather: "雨雪 / 彩虹", time: "06:00-00:00", location: "溫泉山湖", shadow: "小", category: "溫泉山" },
+            { level: 7, name: "皇帶魚", weather: "全天氣", time: "06:00-12:00 / 12:00-18:00", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 7, name: "黑斑小鯛", weather: "雨雪 / 彩虹", time: "00:00-06:00 / 18:00-00:00", location: "緩風海", shadow: "中", category: "漁村" },
+            { level: 7, name: "歐洲鰻鱺", weather: "彩虹", time: "06:00-00:00", location: "舊海", shadow: "中", category: "溫泉山" },
+            { level: 8, name: "黃金帝王蟹", weather: "彩虹", time: "全時段", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 8, name: "鮈魚", weather: "晴天 / 彩虹", time: "00:00-12:00", location: "城郊湖", shadow: "小", category: "城郊" },
+            { level: 8, name: "藍色北歐螯蝦", weather: "全天氣", time: "00:00-06:00 / 18:00-00:00", location: "森林湖", shadow: "小", category: "森林" },
+            { level: 8, name: "金魚", weather: "雨雪 / 彩虹", time: "06:00-00:00", location: "草原湖", shadow: "小", category: "花田" },
+            { level: 8, name: "帝王蟹", weather: "彩虹", time: "06:00-00:00", location: "鯨魚海", shadow: "大", category: "花田" },
+            { level: 8, name: "黑線鱈", weather: "晴天 / 彩虹", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "東海", shadow: "中", category: "森林" },
+            { level: 9, name: "白斑狗魚", weather: "雨雪 / 彩虹", time: "00:00-06:00 / 18:00-00:00", location: "城郊湖", shadow: "中", category: "城郊" },
+            { level: 9, name: "駝背太陽魚", weather: "晴天 / 彩虹", time: "06:00-00:00", location: "溫泉山湖", shadow: "小", category: "溫泉山" },
+            { level: 9, name: "多瑙羅哲魚", weather: "彩虹", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "巨木河", shadow: "中", category: "漁村" },
+            { level: 9, name: "藍鰭金槍魚", weather: "彩虹", time: "06:00-12:00 / 12:00-18:00", location: "緩風海", shadow: "大", category: "漁村" },
+            { level: 9, name: "翻車魚", weather: "全天氣", time: "00:00-12:00", location: "東海", shadow: "大", category: "森林" },
+            { level: 9, name: "月魚", weather: "全天氣", time: "00:00-06:00 / 18:00-00:00", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 10, name: "歐洲鯰魚", weather: "晴天 / 彩虹", time: "00:00-06:00 / 18:00-00:00", location: "草原湖", shadow: "中", category: "花田" },
+            { level: 10, name: "藍鰓太陽魚", weather: "晴天 / 彩虹", time: "00:00-06:00 / 18:00-00:00", location: "溫泉山湖", shadow: "小", category: "溫泉山" },
+            { level: 10, name: "北極紅點鮭", weather: "雨雪 / 彩虹", time: "12:00-18:00 / 18:00-00:00", location: "森林湖", shadow: "中", category: "森林" },
+            { level: 10, name: "劍魚", weather: "彩虹", time: "06:00-12:00 / 12:00-18:00", location: "鯨魚海", shadow: "大", category: "花田" },
+            { level: 10, name: "錘頭鯊", weather: "彩虹", time: "00:00-06:00 / 18:00-00:00", location: "舊海", shadow: "大", category: "溫泉山" },
+            { level: 10, name: "尖吻鯖鯊", weather: "彩虹", time: "06:00-12:00 / 12:00-18:00", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 11, name: "獅子頭金魚", weather: "彩虹", time: "全時段", location: "溫泉山湖", shadow: "小", category: "溫泉山" },
+            { level: 11, name: "金龍魚", weather: "彩虹", time: "00:00-12:00 / 18:00-00:00", location: "草原湖", shadow: "小", category: "花田" },
+            { level: 11, name: "豆娘魚", weather: "晴天 / 彩虹", time: "12:00-18:00 / 18:00-00:00", location: "緩風海", shadow: "中", category: "漁村" },
+            { level: 11, name: "鯨鯊", weather: "晴天 / 彩虹", time: "00:00-12:00 / 18:00-00:00", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 12, name: "鬥魚", weather: "雨雪 / 彩虹", time: "12:00-18:00 / 18:00-00:00", location: "森林湖", shadow: "小", category: "森林" },
+            { level: 12, name: "神仙魚", weather: "彩虹", time: "00:00-06:00 / 18:00-00:00", location: "城郊湖", shadow: "中", category: "城郊" },
+            { level: 12, name: "海月水母", weather: "雨雪 / 彩虹", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "海釣", shadow: "金", category: "特殊" },
+            { level: 12, name: "綠海龜", weather: "彩虹", time: "12:00-18:00 / 18:00-00:00", location: "鯨魚海", shadow: "大", category: "花田" },
+            { level: 12, name: "鯕鰍", weather: "彩虹", time: "06:00-12:00 / 12:00-18:00", location: "舊海", shadow: "大", category: "溫泉山" },
+            { level: 13, name: "倒吊魚", weather: "雨雪 / 彩虹", time: "00:00-06:00 / 12:00-18:00 / 18:00-00:00", location: "舊海", shadow: "中", category: "溫泉山" },
+            { level: 13, name: "獅子魚", weather: "雨雪 / 彩虹", time: "00:00-12:00", location: "鯨魚海", shadow: "中", category: "花田" },
+            { level: 14, name: "半藍金翅雀鯛", weather: "晴天 / 彩虹", time: "12:00-18:00 / 18:00-00:00", location: "緩風海", shadow: "小", category: "漁村" },
+            { level: 14, name: "西澳夢幻龍魚", weather: "晴天 / 彩虹", time: "06:00-00:00", location: "東海", shadow: "中", category: "森林" }
+        ];
+
+        let currentTab = 'bird';
+        let filter = { loc: '全部', weather: '全天氣', time: '全時段' };
+        let search = '';
+        let playerLevel = { insect: 14, fish: 14, bird: 14 };
+        
+        let customData = JSON.parse(localStorage.getItem('town_custom_v5')) || { insect: [], fish: [], bird: [] };
+
+        const birdLocs = ["全部", "中心城區", "城郊", "森林", "花田", "漁村", "溫泉山", "水域", "特殊"];
+        const fishLocs = ["全部", "全湖泊", "全河流", "全海洋", "城郊", "森林", "花田", "漁村", "溫泉山", "特殊"];
+        const insectLocs = ["全部", "中心城區", "家園", "城郊", "森林", "花田", "漁村", "溫泉山", "特殊"];
+        
+        const weathers = ["全天氣", "晴天", "雨天", "彩虹天"];
+        const times = ["全時段", "當前時段", "00:00-06:00", "06:00-12:00", "12:00-18:00", "18:00-00:00"];
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('levelInput').value = playerLevel[currentTab];
+            
+            let accentColor;
+            let title;
+            if(tab === 'insect') { accentColor = 'var(--insect-accent)'; title = '捕蟲手冊'; }
+            else if(tab === 'fish') { accentColor = 'var(--fish-accent)'; title = '捕魚手冊'; }
+            else { accentColor = 'var(--bird-accent)'; title = '觀鳥手冊'; }
+            
+            document.getElementById('floatingAddBtn').style.backgroundColor = accentColor;
+            document.getElementById('saveBtn').style.backgroundColor = accentColor;
+            
+            document.getElementById('tab-bird').className = `tab-btn ${tab === 'bird' ? 'active-bird' : ''}`;
+            document.getElementById('tab-insect').className = `tab-btn ${tab === 'insect' ? 'active-insect' : ''}`;
+            document.getElementById('tab-fish').className = `tab-btn ${tab === 'fish' ? 'active-fish' : ''}`;
+            document.getElementById('mainTitle').innerText = title;
+
+            const birdSection = document.getElementById('birdStretchingSection');
+            if(tab === 'bird') birdSection.classList.remove('hidden');
+            else birdSection.classList.add('hidden');
+
+            resetFilters();
+        }
+
+        function updateLevel(val) {
+            playerLevel[currentTab] = parseInt(val) || 1;
+            renderItems();
+        }
+
+        function resetFilters() {
+            filter = { loc: '全部', weather: '全天氣', time: '全時段' };
+            search = '';
+            document.getElementById('searchInput').value = '';
+            renderUI();
+        }
+
+        function renderUI() {
+            let locs;
+            let accentClass;
+            if(currentTab === 'bird') { locs = birdLocs; accentClass = 'active-bird'; }
+            else if(currentTab === 'insect') { locs = insectLocs; accentClass = 'active-insect'; }
+            else { locs = fishLocs; accentClass = 'active-fish'; }
+            
+            document.getElementById('locationFilters').innerHTML = locs.map(l => `<div class="chip ${filter.loc === l ? accentClass : ''}" onclick="setFilter('loc','${l}')">${l}</div>`).join('');
+            document.getElementById('weatherFilters').innerHTML = weathers.map(w => `<div class="chip ${filter.weather === w ? accentClass : ''}" onclick="setFilter('weather','${w}')">${w}</div>`).join('');
+            document.getElementById('timeFilters').innerHTML = times.map(t => `<div class="chip ${filter.time === t ? accentClass : ''}" onclick="setFilter('time','${t}')">${t}</div>`).join('');
+            renderItems();
+        }
+
+        function setFilter(key, val) {
+            filter[key] = val;
+            renderUI();
+        }
+
+        function isTimeMatch(itemTime, filterTime) {
+            if (filterTime === '全時段') return true;
+            
+            // 新增邏輯：篩選特定時段時，不顯示全時段物種
+            if (itemTime.includes('全時段')) return false;
+
+            let targetHours = [];
+            if (filterTime === '當前時段') {
+                targetHours = [new Date().getHours()];
+            } else {
+                const parts = filterTime.split('-');
+                if(parts.length < 2) return false;
+                const start = parseInt(parts[0].split(':')[0]);
+                const end = parseInt(parts[1].split(':')[0]);
+                const actualEnd = (end === 0 || end === 24) ? 24 : end;
+                for (let i = start; i < actualEnd; i++) targetHours.push(i);
+            }
+
+            const ranges = itemTime.split(/[/,]/).map(r => r.trim());
+            return targetHours.some(hour => {
+                return ranges.some(range => {
+                    const timePart = range.match(/\d{1,2}:\d{2}/g);
+                    if(!timePart || timePart.length < 2) {
+                        const altMatch = range.match(/(\d{1,2})[\s:-]+(\d{1,2})/);
+                        if(altMatch) {
+                            const rs = parseInt(altMatch[1]);
+                            const re = parseInt(altMatch[2]);
+                            if (re === 0 || re === 24 || re < rs) {
+                                let endHour = (re === 0 || re === 24) ? 24 : re;
+                                if (endHour < rs) return hour >= rs || hour < endHour;
+                                return hour >= rs && hour < endHour;
+                            }
+                            return hour >= rs && hour < re;
+                        }
+                        return false;
+                    }
+                    const rPartsStart = timePart[0].split(':');
+                    const rPartsEnd = timePart[1].split(':');
+                    const rs = parseInt(rPartsStart[0]);
+                    const re = parseInt(rPartsEnd[0]);
+                    const actualRe = (re === 0 || re === 24) ? 24 : re;
+                    
+                    if (actualRe < rs) return hour >= rs || hour < actualRe;
+                    return hour >= rs && hour < actualRe;
+                });
+            });
+        }
+
+        function renderItems() {
+            let baseData;
+            if(currentTab === 'bird') baseData = initialBirdData;
+            else if(currentTab === 'insect') baseData = initialInsectData;
+            else baseData = initialFishData;
+
+            const combinedData = [...baseData.map(i => ({...i, isDefault: true})), ...customData[currentTab].map(i => ({...i, isDefault: false}))];
+            const levelLimit = playerLevel[currentTab];
+            
+            let accent, bgColor;
+            if(currentTab === 'bird') { accent = 'var(--bird-accent)'; bgColor = '#FFF3E0'; }
+            else if(currentTab === 'insect') { accent = 'var(--insect-accent)'; bgColor = '#E8F5E9'; }
+            else { accent = 'var(--fish-accent)'; bgColor = '#E3F2FD'; }
+
+            const filtered = combinedData.filter(item => {
+                if (item.level > levelLimit) return false;
+                if (search && !item.name.includes(search)) return false;
+                
+                if (filter.loc !== '全部') {
+                    if (item.category) {
+                        if (item.category !== filter.loc) return false;
+                    } else {
+                        if (!item.location.includes(filter.loc)) return false;
+                    }
+                }
+
+                // 獲取物種的天氣與時段字串
+                let weatherStr = "";
+                let timeStr = "";
+                if(currentTab === 'bird') {
+                   // 修正：以前用 split(' ') 會把有空格的時間欄斷開
+                   // 現在改為找到第一個空格來切割，確保時間完整保留
+                   const spaceIdx = item.appearance.indexOf(' ');
+                   weatherStr = spaceIdx > -1 ? item.appearance.substring(0, spaceIdx) : item.appearance;
+                   timeStr = spaceIdx > -1 ? item.appearance.substring(spaceIdx + 1).trim() : "全時段";
+                } else {
+                   weatherStr = item.weather || "";
+                   timeStr = item.time || "";
+                }
+
+                // 天氣篩選邏輯更新
+                if (filter.weather !== '全天氣') {
+                    // 如果篩選特定天氣，但不顯示全天氣物種
+                    if (weatherStr.includes('全天氣')) return false;
+
+                    const itemWeathers = weatherStr.split(/[\/\s,]+/).map(w => w.trim());
+                    // 模糊比對篩選出的天氣
+                    if (!itemWeathers.some(w => w.includes(filter.weather))) return false;
+                }
+                
+                // 時段篩選邏輯更新 (邏輯內含不顯示全時段)
+                if (!isTimeMatch(timeStr, filter.time)) return false;
+
+                return true;
+            });
+
+            document.getElementById('statsCounter').innerText = `目前顯示: ${filtered.length} 種`;
+            const list = document.getElementById('itemList');
+            
+            list.innerHTML = filtered.map(item => {
+                let bodyContent = '';
+                if(currentTab === 'bird') {
+                    const spaceIdx = item.appearance.indexOf(' ');
+                    const weather = spaceIdx > -1 ? item.appearance.substring(0, spaceIdx) : item.appearance;
+                    const time = spaceIdx > -1 ? item.appearance.substring(spaceIdx + 1).trim() : '全時段';
+                    
+                    // 加入 title 屬性，長字串被卡掉時，hover/長按可顯示完整內容
+                    bodyContent = `
+                        <div class="space-y-1 mt-auto text-[10px] text-gray-500">
+                            <div class="truncate" title="${item.location}">📍 ${item.location}</div>
+                            <div class="truncate" title="${weather}">☁️ ${weather}</div>
+                            <div class="truncate" title="${time}">🕒 ${time}</div>
+                            <div class="truncate text-blue-600 font-medium pt-1" title="${item.movement || ''}">${item.movement ? `🦅 ${item.movement}` : ''}</div>
+                        </div>
+                    `;
+                } else {
+                    bodyContent = `
+                        <div class="space-y-1 mt-auto text-[10px] text-gray-500">
+                            <div class="truncate" title="${item.location}">📍 ${item.location}</div>
+                            <div class="truncate" title="${item.weather}">☁️ ${item.weather}</div>
+                            <div class="truncate" title="${item.time}">🕒 ${item.time}</div>
+                        </div>
+                    `;
+                }
+
+                return `
+                <div class="card p-3 flex flex-col h-full">
+                    ${!item.isDefault ? `<div class="delete-badge" onclick="deleteItem('${item.name}')">✕</div>` : ''}
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:${bgColor}; color:${accent}">LV.${item.level}</span>
+                        ${item.shadow ? `<span class="text-[9px] font-bold text-amber-600">${shadowMap[item.shadow] || item.shadow}</span>` : ''}
+                    </div>
+                    <h3 class="text-sm font-bold mb-3 truncate text-gray-700" title="${item.name}">${item.name}</h3>
+                    ${bodyContent}
+                </div>
+            `}).join('');
+            
+            document.getElementById('empty').className = filtered.length ? 'hidden' : 'py-20 text-center text-gray-400 px-4';
+        }
+
+        let newFormSelection = { 
+            category: '', 
+            weathers: ["全天氣"], 
+            times: ["全時段"], 
+            stretchWeathers: ["雨天", "彩虹天"], 
+            stretchTimes: ["全時段"] 
+        };
+
+        function openModal() {
+            let locs;
+            if(currentTab === 'bird') locs = birdLocs;
+            else if(currentTab === 'insect') locs = insectLocs;
+            else locs = fishLocs;
+
+            document.getElementById('newName').value = '';
+            document.getElementById('newLocInput').value = '';
+            document.getElementById('newLevel').value = '1';
+            
+            renderModalChoices('newLocOptions', locs.filter(l => l !== '全部'), 'category', false);
+            renderModalChoices('newWeatherOptions', weathers, 'weather', true);
+            renderModalChoices('newTimeOptions', times.filter(t => t !== '當前時段'), 'time', true);
+            
+            if(currentTab === 'bird') {
+                renderModalChoices('newStretchWeatherOptions', weathers.filter(w => w !== '全天氣'), 'stretchWeather', true);
+                renderModalChoices('newStretchTimeOptions', times.filter(t => t !== '當前時段'), 'stretchTime', true);
+            }
+            
+            newFormSelection = { 
+                category: '', 
+                weathers: ["全天氣"], 
+                times: ["全時段"], 
+                stretchWeathers: ["雨天", "彩虹天"], 
+                stretchTimes: ["全時段"] 
+            };
+            updateModalUI();
+            
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('hidden');
+            setTimeout(() => overlay.classList.add('modal-active'), 10);
+        }
+
+        function closeModal() {
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('modal-active');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+
+        function renderModalChoices(containerId, options, type, multiple) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = options.map(opt => `<div class="chip" data-type="${type}" data-val="${opt}" onclick="toggleChoice('${type}', '${opt}', ${multiple})">${opt}</div>`).join('');
+        }
+
+        function toggleChoice(type, val, multiple) {
+            if (type === 'category') {
+                newFormSelection.category = val;
+                if (!document.getElementById('newLocInput').value.trim()) document.getElementById('newLocInput').value = val;
+            } else if (type === 'weather') handleMulti(newFormSelection.weathers, val, "全天氣");
+            else if (type === 'time') handleMulti(newFormSelection.times, val, "全時段");
+            else if (type === 'stretchWeather') handleMulti(newFormSelection.stretchWeathers, val, "全天氣");
+            else if (type === 'stretchTime') handleMulti(newFormSelection.stretchTimes, val, "全時段");
+            updateModalUI();
+        }
+
+        function handleMulti(arr, val, defaultVal) {
+            if (val === defaultVal) arr.splice(0, arr.length, defaultVal);
+            else {
+                const defIdx = arr.indexOf(defaultVal);
+                if (defIdx > -1) arr.splice(defIdx, 1);
+                const idx = arr.indexOf(val);
+                if (idx > -1) arr.splice(idx, 1);
+                else arr.push(val);
+                if (arr.length === 0) arr.push(defaultVal);
+            }
+        }
+
+        function updateModalUI() {
+            let accent;
+            if(currentTab === 'bird') accent = 'active-bird';
+            else if(currentTab === 'insect') accent = 'active-insect';
+            else accent = 'active-fish';
+
+            document.querySelectorAll('.modal-content .chip').forEach(el => {
+                const { type, val } = el.dataset;
+                let active = false;
+                if (type === 'category') active = (newFormSelection.category === val);
+                if (type === 'weather') active = newFormSelection.weathers.includes(val);
+                if (type === 'time') active = newFormSelection.times.includes(val);
+                if (type === 'stretchWeather') active = newFormSelection.stretchWeathers.includes(val);
+                if (type === 'stretchTime') active = newFormSelection.stretchTimes.includes(val);
+                el.classList.toggle(accent, active);
+            });
+        }
+
+        function saveNewItem() {
+            const name = document.getElementById('newName').value.trim();
+            const locLabel = document.getElementById('newLocInput').value.trim();
+            const category = newFormSelection.category;
+            const level = parseInt(document.getElementById('newLevel').value) || 1;
+
+            if (!name || !locLabel || !category) {
+                const msg = document.createElement('div');
+                msg.innerText = "請填寫名稱、地點並選擇歸納類別";
+                msg.className = "fixed top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-2 rounded-full shadow-lg z-[1000] text-sm";
+                document.body.appendChild(msg);
+                setTimeout(() => msg.remove(), 2000);
+                return;
+            }
+
+            const item = {
+                name,
+                level: level,
+                location: locLabel,
+                category: category,
+            };
+
+            if(currentTab === 'bird') {
+                item.appearance = `${newFormSelection.weathers.join('/')} ${newFormSelection.times.join('/')}`;
+                item.movement = `${newFormSelection.stretchWeathers.join('/')} ${newFormSelection.stretchTimes.join(' / ')}`; 
+            } else {
+                item.weather = newFormSelection.weathers.join(' / ');
+                item.time = newFormSelection.times.join(' / ');
+                if(currentTab === 'fish') item.shadow = '中';
+            }
+
+            customData[currentTab].push(item);
+            localStorage.setItem('town_custom_v5', JSON.stringify(customData));
+            renderItems();
+            closeModal();
+        }
+
+        function deleteItem(name) {
+            if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+            customData[currentTab] = customData[currentTab].filter(i => i.name !== name);
+            localStorage.setItem('town_custom_v5', JSON.stringify(customData));
+            renderItems();
+        }
+
+        document.getElementById('searchInput').addEventListener('input', e => { search = e.target.value; renderItems(); });
+        window.onload = () => switchTab('bird');
+    </script>
+</body>
+</html>
